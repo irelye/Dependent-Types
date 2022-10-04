@@ -50,21 +50,46 @@
 
 -- 5. Докажите дистрибутивность умножения над сложением для натуральных чисел.
 
-\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n => {?}
+\import lect03(+-assoc, +-comm)
 
-\func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k => {?}
+\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n \elim n
+  | 0     => idp
+  | suc n =>
+    (m + k) * n + (m + k)     ==< pmap (`+ (m + k)) (rdistr n m k)                    >==
+    m * n + k * n + (m + k)   ==< +-assoc (m * n) (k * n) (m + k)                     >==
+    m * n + (k * n + (m + k)) ==< pmap (m * n +) (sym (+-assoc (k * n) m k))          >==
+    m * n + (k * n + m + k)   ==< pmap (\lam x => m * n + (x + k)) (+-comm (k * n) m) >==
+    m * n + (m + k * n + k)   ==< pmap (m * n +) (+-assoc m (k * n) k)                >==
+    m * n + (m + (k * n + k)) ==< sym (+-assoc (m * n) m (k * n + k))                 >==
+    m * n + m + (k * n + k)   `qed
+
+\func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k \elim m, k
+  | 0, 0         => idp
+  | 0, suc k     => idp
+  | suc m, 0     => idp
+  | suc m, suc k =>
+    n * (m + k) + n + n       ==< pmap (\lam x => x + n + n) (ldistr n m k) >==
+    n * m + n * k + n + n     ==< pmap (`+ n) (+-assoc (n * m) (n * k) n)   >==
+    n * m + (n * k + n) + n   ==< +-assoc (n * m) (n * k + n) n             >==
+    n * m + (n * k + n + n)   ==< pmap (n * m +) (+-comm (n * k + n) n)     >==
+    n * m + (n + (n * k + n)) ==< sym (+-assoc (n * m) n (n * k + n))       >==
+    n * m + n + (n * k + n)   `qed
 
 -- 6. Определите конгруэнтность для функций двух аргументов через transport.
 --    Можно использовать любые функции, определенные через transport.
 
-\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' =>
+  f a b   ==< transport (\lam x => f a b = f x b) p idp   >==
+  f a' b  ==< transport (\lam x => f a' b = f a' x) q idp >==
+  f a' b' `qed
 
 -- 7. Докажите, что transport выражается через pmap и repl и наоборот.
 
 -- repl говорит, что если у нас есть два равных типа, то у нас есть функция из одного во второй.
 -- Определите repl через transport.
 
-\func repl {A B : \Type} (p : A = B) (a : A) : B => {?}
+\func repl {A B : \Type} (p : A = B) (a : A) : B =>
+  transport (\lam x => A -> x) p (\lam x => x) a
 
 -- Определите transport через repl и pmap.
 
