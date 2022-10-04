@@ -93,4 +93,4 @@
 
 -- Определите transport через repl и pmap.
 
-\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => repl (pmap B p) b
