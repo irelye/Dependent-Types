@@ -45,8 +45,10 @@
 
 -- 8. Мы видели как определить transport через coe. Определите частный случай coe через transport.
 
-\func coe0 (A : I -> \Type) (a : A left) : A right => {?}
+\func coe0 (A : I -> \Type) (a : A left) : A right =>
+  transport A left=right a
 
 -- 9. Определите функцию B right -> B left.
 
-\func Itr' {B : I -> \Type} (b : B right) : B left => {?}
+\func Itr' {B : I -> \Type} (b : B right) : B left =>
+  transport B (sym left=right) b
