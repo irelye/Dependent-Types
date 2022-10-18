@@ -2,7 +2,13 @@
 
 -- 2. Докажите, что (\lam x => not (not x)) = (\lam x => x).
 
-\func notNotId : (\lam x => not (not x)) = (\lam x => x) => {?}
+\func notNotId : (\lam x => not (not x)) = (\lam x => x) =>
+  path (\lam i x => (notNotId' x) @ i)
+  \where {
+    \func notNotId' (b : Bool) : not (not b) = b \elim b
+      | true  => idp
+      | false => idp
+  }
 
 -- 3. Докажите, что fac не равен suc.
 
@@ -12,7 +18,11 @@
   | 0 => 1
   | suc n => suc n * fac n
 
-\func fac/=suc (p : fac = suc) : Empty => {?}
+\func fac/=suc (p : fac = suc) : Empty =>
+  fac3/=suc3 (pmap (\lam f => f 3) p)
+  \where {
+    \func fac3/=suc3 (p : fac 3 = suc 3) : Empty \elim p
+  }
 
 -- 4. Докажите, что left = right, не используя transport, coe и паттерн матчинг с idp.
 
