@@ -1,0 +1,99 @@
+\import Utils
+\import lect06
+\open Nat(+)
+
+-- 1. Определите функцию swap несколькими способами.
+
+-- При помощи \cowith и доступа к полям.
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst_ => p.snd_
+  | snd_ => p.fst_
+
+-- При помощи \new и паттерн матчинга.
+\func swap' {A B : \Type} (p : Pair A B) : Pair B A \elim p
+  | (a,b) => \new Pair { | fst_ => b | snd_ => a }
+
+-- При помощи \new и доступа к полям.
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => \new Pair {
+  | fst_ => p.snd_
+  | snd_ => p.fst_
+}
+
+-- 2. Докажите, что swap (swap p) = p.
+
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => idp
+
+-- 3. Докажите, что тип PosNat 0 пустой, а тип PosNat 1 нет.
+
+\func zero-isNotPos (p : PosNat 0) : Empty => \case p.p \with {}
+
+\func one-isPos : PosNat 1 \cowith
+  | p => ()
+
+-- 4. Определите \record, состоящий из пар взаимно простых натуральных чисел.
+--    Определите тип, состоящий из натуральных чисел, взаимно простых с 60.
+
+\record Coprime (n m : Nat)
+  | gcd-is-1 : \Pi (k : Nat) -> \Sigma (x y : Nat) (k * x = n) (k * y = m) -> k = 1
+
+\record Coprime60 \extends Coprime 60
+
+-- 5. Закончите определение класса монад. Этот класс должен содержать все монадные законы и реализовывать все поля из класса функторов.
+
+\class Monad \extends Functor
+  | return {A : \Set} : A -> F A
+  | \infixl 1 >>= {A B : \Set} : F A -> (A -> F B) -> F B
+  | r-unit {A : \Set} {m : F A} : (m >>= return) = m
+  | l-unit {A B : \Set} {a : A} {f : A -> F B}: (return a >>= f) = f a
+  | >>=-assoc
+    {A B C : \Set}
+    {f : A -> F B}
+    {g : B -> F C}
+    {m : F A}      : (m >>= (\lam a => f a >>= g)) = ((m >>= f) >>= g)
+  | fmap      => \lam f x => x >>= (\lam a => return (f a))
+  | fmap-id   => \lam x => r-unit
+  | fmap-comp =>
+    \lam f g x => pmap (\lam f' => x >>= f') (funExt (\lam a => sym l-unit)) *> >>=-assoc
+  \where {
+    \func funExt {A B : \Type} {f f' : A -> B} (p : \Pi (a : A) -> f a = f' a) : f = f' => \lam i a => p a i
+  }
+
+{-
+                     (3) = {?} . (1)                                  (4)
+  FMAP-C: x >>= (\lam a => return (g (f a)))   =   (x >>= (\lam a => return (f a))) >>= (\lam b => return (g b))
+  ASSOC:  m >>= (\lam a =>     f' a >>= g')    =   (m >>=          f')               >>=            g'
+                           {?} . (2)                                  (4)
+  ---------
+  ???:   f' a >>= g' = (return f a) >>= (\lam b => return (g b)) = return (g (f a))
+  L-UNIT:               return  a'' >>=           f''            =     f'' a
+  L-UNIT': (\lam a => f' a >>= g') = (\lam a => return (g (f a)))
+                    (2)                          (1)
+  ---------
+  GOAL:     (3) = (4)
+  SOLUTION: pmap {?} ((1) = (2)) => {?} . (1) = {?} . (2) => (3) = (4)
+            sym l-unit' =>  (1) = (2)
+-}
+
+-- 6. Определите \instance Monad для Maybe.
+
+\instance MaybeMonad : Monad Maybe
+  | return => \lam a => just a
+  | >>= {A B : \Set} (m : Maybe A) (f : A -> Maybe B) : Maybe B \elim m {
+    | nothing => nothing
+    | just a  => f a
+  }
+  | r-unit => \lam {A : \Set} {m : Maybe A} => \case m \with {
+    | nothing => {?}
+    | just a  => {?}
+  }
+  | l-unit    => {?}
+  | >>=-assoc => {?}
+
+
+-- 7. Определите \instance Monad для State и State'.
+
+\record State (S A : \Type)
+  | state : S -> \Sigma S A
+
+\data State' (S A : \Type)
+  | state' (S -> \Sigma S A)
