@@ -1,3 +1,4 @@
+\import Meta
 \import Utils
 \import lect06
 \open Nat(+)
@@ -44,7 +45,7 @@
   | return {A : \Set} : A -> F A
   | \infixl 1 >>= {A B : \Set} : F A -> (A -> F B) -> F B
   | r-unit {A : \Set} {m : F A} : (m >>= return) = m
-  | l-unit {A B : \Set} {a : A} {f : A -> F B}: (return a >>= f) = f a
+  | l-unit {A B : \Set} {a : A} {f : A -> F B} : (return a >>= f) = f a
   | >>=-assoc
     {A B C : \Set}
     {f : A -> F B}
@@ -77,18 +78,24 @@
 -- 6. Определите \instance Monad для Maybe.
 
 \instance MaybeMonad : Monad Maybe
-  | return => \lam a => just a
+  | return {A : \Set} : A -> Maybe A => just
   | >>= {A B : \Set} (m : Maybe A) (f : A -> Maybe B) : Maybe B \elim m {
     | nothing => nothing
     | just a  => f a
   }
-  | r-unit => \lam {A : \Set} {m : Maybe A} => \case m \with {
-    | nothing => {?}
-    | just a  => {?}
+  | r-unit {A : \Set} {m : Maybe A} : (m >>= return) = m \elim m {
+    | nothing => idp
+    | just a  => idp
   }
-  | l-unit    => {?}
-  | >>=-assoc => {?}
-
+  | l-unit {A B : \Set} {a : A} {f : A -> Maybe B} : (return a >>= f) = f a => idp
+  | >>=-assoc
+      {A B C : \Set}
+      {f : A -> Maybe B}
+      {g : B -> Maybe C}
+      {m : Maybe A}      : (m >>= (\lam a => f a >>= g)) = ((m >>= f) >>= g) \elim m {
+    | nothing => idp
+    | just a  => idp
+  }
 
 -- 7. Определите \instance Monad для State и State'.
 
