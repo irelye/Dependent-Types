@@ -1,10 +1,11 @@
-\import Meta(cases, mcases)
-\import Function.Meta($)
+\import Arith.Nat (NatSemiring)
 \import Data.Bool
 \import Data.List \hiding (headDef)
-\import Utils (*>, <->, absurd, pmap, sym, transport)
-\import lect08
+\import Function.Meta ($)
+\import Meta (cases)
 \import Order.LinearOrder
+\import Utils (*>, <->, ==<, >==, pmap, qed, sym)
+\import lect08
 \open LinearOrder
 
 -- 1. Реализуйте функцию filter и докажите ее корректность, то есть, что выполнены следующие условия:
@@ -69,6 +70,33 @@
 
 -- 4. Определите факториал через хвостовую рекурсию.
 --    Докажите, что он равен обычному определению факториала.
+
+\func fac-tail (n : Nat) : Nat => fac-tail' n 1
+  \where {
+    \func fac-tail' (n mul : Nat) : Nat \elim n
+      | 0     => mul
+      | suc n => fac-tail' n (suc n Nat.* mul)
+  }
+
+\func fac (n : Nat) : Nat
+  | 0 => 1
+  | suc n => suc n Nat.* fac n
+
+\func fac-tail=fac : fac-tail = fac => \lam i n => (fac-tail=fac' n) @ i
+  \where {
+    \func fac-tail=fac' (n : Nat) : fac-tail n = fac n \elim n
+      | 0     => idp
+      | suc n => mul-fac-tail n (suc n) *> pmap (\lam x => suc n Nat.* x) (fac-tail=fac' n)
+
+    \func mul-fac-tail (n mul : Nat) : fac-tail.fac-tail' n mul = mul Nat.* fac-tail.fac-tail' n 1 \elim n
+      | 0     => idp
+      | suc n =>
+        fac-tail.fac-tail' n (suc n Nat.* mul)               ==< mul-fac-tail n (suc n Nat.* mul)                                   >==
+        suc n Nat.* mul Nat.* fac-tail.fac-tail' n 1         ==< pmap (\lam x => x Nat.* fac-tail.fac-tail' n 1) NatSemiring.*-comm >==
+        (mul Nat.* n Nat.+ mul) Nat.* fac-tail.fac-tail' n 1 ==< NatSemiring.*-assoc                                                >==
+        mul Nat.* (suc n Nat.* fac-tail.fac-tail' n 1)       ==< pmap (\lam x => mul Nat.* x) (sym (mul-fac-tail n (suc n)))        >==
+        mul Nat.* fac-tail.fac-tail' n (suc n)               `qed
+  }
 
 -- 5. Определите функцию, которая проверяет правильность скобочной последовательности.
 --    Докажите ее корректность.
