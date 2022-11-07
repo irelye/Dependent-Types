@@ -1,0 +1,87 @@
+\import Meta(cases, mcases)
+\import Function.Meta($)
+\import Data.Bool
+\import Data.List \hiding (headDef)
+\import Utils (*>, <->, absurd, pmap, sym, transport)
+\import lect08
+\import Order.LinearOrder
+\open LinearOrder
+
+-- 1. Реализуйте функцию filter и докажите ее корректность, то есть, что выполнены следующие условия:
+--    * filter p xs является подсписком xs
+--    * Все элементы filter p xs удовлетворяют предикату p
+--    * Любой подсписок xs с тем же свойством является подсписком filter p xs
+
+\data Sublist {A : \Type} (xs ys : List A) \elim xs, ys
+  | nil, _           => nil-subl
+  | xs, :: y ys      => subl-cons-neq (Sublist xs ys)
+  | :: x xs, :: y ys => subl-cons-eq (x = y) (Sublist xs ys)
+
+\data PredList {A : \Type} (P : A -> Bool) (xs : List A) \elim xs
+  | nil     => nil-true
+  | :: a xs => head-true (P a = true) (PredList P xs)
+
+\module Filter \where {
+  \func filter {A : \Type} (P : A -> Bool) (xs : List A) : List A \elim xs
+    | nil     => nil
+    | :: a xs => \case P a \with {
+      | true  => a :: (filter P xs)
+      | false => filter P xs
+    }
+
+  \func filter-subl {A : \Type} (P : A -> Bool) (xs : List A) : Sublist (filter P xs) xs \elim xs
+    | nil     => nil-subl
+    | :: a xs => cases (P a) \with {
+      | true  => subl-cons-eq idp (filter-subl P xs)
+      | false => subl-cons-neq (filter-subl P xs)
+    }
+
+  \func filter-pred {A : \Type} (P : A -> Bool) (xs : List A) : PredList P (filter P xs) \elim xs
+    | nil     => nil-true
+    | :: a xs => cases (P a arg addPath) \with {
+      | true, idp_ => head-true idp_ (filter-pred P xs)
+      | false, _   => filter-pred P xs
+    }
+
+  \func filter-max {A : \Type} (P : A -> Bool) (xs ys : List A) (qs : Sublist ys xs) (qp : PredList P ys)
+    : Sublist ys (filter P xs) \elim xs, ys
+      | nil, :: y ys     => \case qs \with {}
+      | _, nil           => nil-subl
+      | :: x xs, :: y ys => \case qs, qp \with {
+        | subl-cons-neq yys-in-xs, _ =>
+          cases (P x) \with {
+            | true  => subl-cons-neq $ filter-max P xs (y :: ys) yys-in-xs qp
+            | false => filter-max P xs (y :: ys) yys-in-xs qp
+          }
+        | subl-cons-eq y=x ys-in-xs, head-true py p-ys => cases (P x arg addPath) \with {
+            | true, _   => subl-cons-eq y=x (filter-max P xs ys ys-in-xs p-ys)
+            | false, px => \case true/=false (sym py *> pmap P y=x *> px) \with {}
+          }
+      }
+}
+
+-- 2. Докажите, что Perm l1 l2 тогда и только тогда, когда Insertion.sort l1 = Insertion.sort l2.
+
+-- 3. Докажите, что спецификация "результат является перестановкой входа и отсортирован" является полной для функции sort.
+
+\func completeness {A : Dec} (sort : List A -> List A) (l : List A) (p : Perm l (sort l)) (s : Sorted (sort l)) : sort l = Insertion.sort l
+  => {?}
+
+-- 4. Определите факториал через хвостовую рекурсию.
+--    Докажите, что он равен обычному определению факториала.
+
+-- 5. Определите функцию, которая проверяет правильность скобочной последовательности.
+--    Докажите ее корректность.
+
+\data Paren | Left | Right
+
+\func isBalanced (xs : List Paren) : Bool
+  => {?}
+
+\data Balanced (xs : List Paren) \with
+  | nil => nil-balanced
+  | :: Left xs => cons-balanced {ys : List Paren} (Balanced ys) (xs = ys ++ Right :: nil)
+  | xs => append-balanced {ys zs : List Paren} (Balanced ys) (Balanced zs) (xs = ys ++ zs)
+
+\func isBalanced-correct (xs : List Paren) : (isBalanced xs = true) <-> Balanced xs
+  => {?}
