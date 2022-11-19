@@ -5,3 +5,4 @@ bin/
 *.iml
 cli-*-full.jar
 lib/Prelude.arc
+src/Hidden
