@@ -1,0 +1,153 @@
+\import Data.Bool (or)
+\import DeadlineFailures.lect07 \hiding (<=-refl, baz, isEven)
+\import Function.Meta
+\import Meta
+\import Paths (pmap2)
+\import lect10
+\import Utils
+
+-- 1. Пусть f : A -> B и g : B -> C ─ некоторые функции.
+--    Докажите, что если f и g инъективны, то g `o` f также инъективна.
+--    Докажите, что если g `o` f инъективна, то f также инъективна.
+
+-- Композиция функций
+\func \fixr 9 o {A B C : \Type} (g : B -> C) (f : A -> B) => \lam a => g (f a)
+
+\func o-inj {A B C : \Type} (f : A -> B) (g : B -> C) (p : isInj f) (q : isInj g) : isInj (g `o` f)
+  => \lam {x y : A} gfx=gfy => p (q {f x} {f y} gfx=gfy)
+
+\func o-inj' {A B C : \Type} (f : A -> B) (g : B -> C) (p : isInj (g `o` f)) : isInj f
+  => \lam {x y : A} fx=fy => p (pmap g fx=fy)
+
+-- 2. Определите предикат "делится на 3 или на 5" так, чтобы он возвращал утверждения.
+--    Докажите, что MultipleOf3Or5 вкладывается в ℕ.
+
+\func isMultipleOf3Or5 (n : Nat) : \Type
+  => T $ or (isM3 n) (isM5 n)
+  \where {
+    \func or (l r : Bool) : Bool
+      | true, _      => true
+      | _, true      => true
+      | false, false => false
+
+    \func isM3 (n : Nat) : Bool
+      | 0 => true
+      | 1 => false
+      | 2 => false
+      | suc (suc (suc n)) => isM3 n
+
+    \func isM5 (n : Nat) : Bool
+      | 0 => true
+      | 1 => false
+      | 2 => false
+      | 3 => false
+      | 4 => false
+      | suc (suc (suc (suc (suc n)))) => isM5 n
+  }
+
+\func isMultipleOf3Or5-isProp (n : Nat) : isProp (isMultipleOf3Or5 n)
+  => cases (isM3 n arg addPath, isM5 n arg addPath) \with {
+    | true, p, _, _        => isM3-then-Prop p
+    | _, _, true, p        => isM5-then-Prop p
+    | false, p3, false, p5 => notM5OrM3-then-Prop p3 p5
+  }
+  \where {
+    \func isM3 => isMultipleOf3Or5.isM3
+
+    \func isM5 => isMultipleOf3Or5.isM5
+
+    \func isM3-then-Prop {n : Nat} (p : isM3 n = true) : isProp (isMultipleOf3Or5 n)
+      => cases (isM5 n arg addPath) \with {
+        | true, q  => propSigma (pmap2 (\lam l r => T $ isMultipleOf3Or5.or l r) p q)
+        | false, q => propSigma (pmap2 (\lam l r => T $ isMultipleOf3Or5.or l r) p q)
+      }
+
+    \func isM5-then-Prop {n : Nat} (p : isM5 n = true) : isProp (isMultipleOf3Or5 n)
+      => cases (isM3 n arg addPath) \with {
+        | true, q  => propSigma (pmap2 (\lam l r => T $ isMultipleOf3Or5.or l r) q p)
+        | false, q => propSigma (pmap2 (\lam l r => T $ isMultipleOf3Or5.or l r) q p)
+      }
+
+    \func notM5OrM3-then-Prop {n : Nat} (p : isM3 n = false) (q : isM5 n = false)
+      : isProp (isMultipleOf3Or5 n)
+      => propEmpty (pmap2 (\lam l r => T $ isMultipleOf3Or5.or l r) p q)
+
+    \func propSigma {A : \Type} (p : A = (\Sigma)) : isProp A => transport isProp (sym p) (\lam x y => idp)
+
+    \func propEmpty {A : \Type} (p : A = Empty) : isProp A => transport isProp (sym p) (\lam x y => absurd x)
+  }
+
+
+\func MultipleOf3Or5 => \Sigma (n : Nat) (isMultipleOf3Or5 n)
+
+\func Mul-inc (m : MultipleOf3Or5) => m.1
+
+\func Mul-inc-isInj : isInj Mul-inc => \lam {x} {y} p => sigmaEq _ x y p T-lem
+
+-- 3. Мы будем говорить, что тип A тривиален, если существует элемент в A, такой что любой другой элемент в A равен ему.
+--    Докажите, что тип A тривиален тогда и только тогда, когда A является утверждением и A населен.
+
+\func isTriv (A : \Type) => \Sigma (a : A) (\Pi (a' : A) -> a = a')
+
+\func \infix 1 <-> (A B : \Type) => \Sigma (A -> B) (B -> A)
+
+\func isTriv-lem (A : \Type) : isTriv A <-> (\Sigma (isProp A) A) => {?}
+
+-- 4. Докажите, что Either не является утверждением в общем случаем.
+
+\func Either-isProp (p : \Pi {A B : \Type} (pA : isProp A) (pB : isProp B) -> isProp (Either A B)) : Empty => {?}
+
+-- 5. Докажите, что LessOrEq является предикатом.
+
+\data LessOrEq (n m : Nat) : \Set0 \with
+  | 0, m => z<=n
+  | suc n, suc m => s<=s (LessOrEq n m)
+
+\func LessOrEq-isProp {n m : Nat} : isProp (LessOrEq n m) => {?}
+
+-- 6. Докажте, что ReflClosure LessOrEq не является предикатом, а ReflClosure (\lam x y => T (x < y)) является.
+
+\func \infix 4 < (n m : Nat) : Bool
+  | _, 0 => false
+  | 0, suc _ => true
+  | suc n, suc m => n < m
+
+\data ReflClosure (R : Nat -> Nat -> \Type) (x y : Nat)
+  | refl (x = y)
+  | inc (R x y)
+
+\func ReflClosure_<-isProp (n m : Nat) : isProp (ReflClosure (\lam x y => T (x < y)) n m) => {?}
+
+\func ReflClosure_<=-isNotProp (p : \Pi (n m : Nat) -> isProp (ReflClosure LessOrEq n m)) : Empty => {?}
+
+-- 7. Докажите, что если тип A вкладывается в тип B и B является утверждением, то и A является утверждением.
+
+\func sub-isProp {A B : \Type} (f : A -> B) (p : isInj f) (q : isProp B) : isProp A => {?}
+
+-- 8. Докажите, что тип с разрешимым равенством являетя множеством.
+
+\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A
+  => {?}
+
+-- 9. Если A и B являются множествами, то A `Or` B тоже является множеством.
+
+\data \fixr 2 Or (A B : \Type)
+  | inl A
+  | inr B
+
+\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B) => {?}
+
+-- 10. Если B x является множеством, то \Pi (x : A) -> B x тоже является множеством.
+
+\func pi-isSet {A : \Type} (B : A -> \Type) (p : \Pi (x : A) -> isSet (B x)) : isSet (\Pi (x : A) -> B x) => {?}
+
+-- 11. Докажите, что если A является множеством, то List A также им является.
+
+\func List-isSet {A : \Type} (pA : isSet A) : isSet (List A)
+  => {?}
+
+-- Optional:
+-- 12. Докажите, что n-типы замкнуты относительно образования \Pi-типов.
+--     Hint: Доказательство по индукции. Для случая suc n нужно доказать, что если f,g : \Pi (x : A) -> B x, то f = g эквивалентно \Pi (x : A) -> f x = g x.
+
+\func levelPi {A : \Type} (B : A -> \Type) (n : Nat) (p : \Pi (x : A) -> B x `hasLevel` n) : (\Pi (x : A) -> B x) `hasLevel` n => {?}
