@@ -91,19 +91,38 @@
 
 \func \infix 1 <-> (A B : \Type) => \Sigma (A -> B) (B -> A)
 
-\func isTriv-lem (A : \Type) : isTriv A <-> (\Sigma (isProp A) A) => {?}
+\func isTriv-lem (A : \Type) : isTriv A <-> (\Sigma (isProp A) A)
+  => (lem->, lem<-)
+  \where {
+    \func lem-> {A : \Type} : isTriv A -> (\Sigma (isProp A) A)
+      => \lam (a, p) => (\lam x y => sym (p x) *> p y, a)
 
--- 4. Докажите, что Either не является утверждением в общем случаем.
+    \func lem<- {A : \Type} : (\Sigma (isProp A) A) -> isTriv A
+      => \lam (p, a) => (a, \lam a' => p a a')
+  }
 
-\func Either-isProp (p : \Pi {A B : \Type} (pA : isProp A) (pB : isProp B) -> isProp (Either A B)) : Empty => {?}
+-- 4. Докажите, что Either не является утверждением в общем случае.
+
+\func Either-isProp (p : \Pi {A B : \Type} (pA : isProp A) (pB : isProp B) -> isProp (Either A B)) : Empty
+  => inl=inr-isEmpty $ p Unit-isProp Sigma-isProp (Either.inl unit) (Either.inr ())
+  \where {
+    \func Unit-isProp : isProp Unit => \lam x y => \case \elim x, \elim y \with { | unit, unit => idp }
+
+    \func Sigma-isProp : isProp (\Sigma) => \lam x y => idp
+
+    \func inl=inr-isEmpty {A B : \Type} {a : A} {b : B} (p : Either.inl {A} {B} a = Either.inr {A} {B} b) : Empty
+  }
 
 -- 5. Докажите, что LessOrEq является предикатом.
 
 \data LessOrEq (n m : Nat) : \Set0 \with
-  | 0, m => z<=n
+  | 0, m         => z<=n
   | suc n, suc m => s<=s (LessOrEq n m)
 
-\func LessOrEq-isProp {n m : Nat} : isProp (LessOrEq n m) => {?}
+\func LessOrEq-isProp {n m : Nat} : isProp (LessOrEq n m) \elim n, m
+  | 0, m         => \lam x y => \case \elim x, \elim y \with { | z<=n, z<=n => idp }
+  | suc n, suc m => \lam x y => \case \elim x, \elim y \with { | s<=s x, s<=s y => pmap s<=s (LessOrEq-isProp {n} {m} x y) }
+  | suc n, 0     => \lam x y => \case \elim x, \elim y \with {}
 
 -- 6. Докажте, что ReflClosure LessOrEq не является предикатом, а ReflClosure (\lam x y => T (x < y)) является.
 
@@ -116,9 +135,65 @@
   | refl (x = y)
   | inc (R x y)
 
-\func ReflClosure_<-isProp (n m : Nat) : isProp (ReflClosure (\lam x y => T (x < y)) n m) => {?}
+\func ReflClosure_<-isProp (n m : Nat) : isProp (ReflClosure (\lam x y => T (x < y)) n m) \elim n, m
+  | 0, 0         => \lam x y => \case \elim x, \elim y \with {
+    | refl px, refl py => pmap refl (Nat-isSet px py)
+    | inc r, _         => absurd r
+    | _, inc r         => absurd r
+  }
+  | 0, suc m     => \lam x y => \case \elim x, \elim y \with {
+    | refl px, _     => absurd (zero-not-suc px)
+    | _, refl py     => absurd (zero-not-suc py)
+    | inc rx, inc ry => pmap inc (idp {\Sigma} {()})
+  }
+  | suc n, 0     => \lam x y => \case \elim x, \elim y \with {
+    | _, refl p => absurd (zero-not-suc (sym p))
+    | _, inc r  => absurd r
+  }
+  | suc n, suc m => \lam x y => \case \elim x, \elim y \with {
+    | refl px, refl py => pmap refl (Nat-isSet px py)
+    | refl px, inc ry  => absurd (refl-not-inc $ ReflClosure_<-isProp n m (refl (pmap dec px)) (inc ry))
+    | inc rx, refl py  => absurd (refl-not-inc $ ReflClosure_<-isProp n m (refl (pmap dec py)) (inc rx))
+    | inc rx, inc ry   => pmap inc T-lem
+  }
+  \where {
+    \func Nat-isSet {n m : Nat} : isProp (n = m)
+      => setLem NatEq NatEq-isProp NatEq-n=m NatEq-is= n m
 
-\func ReflClosure_<=-isNotProp (p : \Pi (n m : Nat) -> isProp (ReflClosure LessOrEq n m)) : Empty => {?}
+    \data NatEq (n m : Nat) \elim n, m
+      | 0, 0         => zero-eq
+      | suc n, suc m => suc-eq (NatEq n m)
+
+    \func NatEq-isProp (n m : Nat) : isProp (NatEq n m) \elim n, m
+      | 0, 0         => \lam x y => \case \elim x, \elim y \with { | zero-eq, zero-eq => idp }
+      | 0, suc m     => \lam x y => \case \elim x, \elim y \with { }
+      | suc n, 0     => \lam x y => \case \elim x, \elim y \with { }
+      | suc n, suc m => \lam x y => \case \elim x, \elim y \with {
+        | suc-eq x, suc-eq y => pmap suc-eq (NatEq-isProp n m x y)
+      }
+
+    \func NatEq-n=m (k : Nat) : NatEq k k \elim k
+      | 0     => zero-eq
+      | suc k => suc-eq (NatEq-n=m k)
+
+    \func NatEq-is= {n m : Nat} (eq : NatEq n m) : n = m \elim n, m, eq
+      | 0, 0, zero-eq           => idp
+      | suc n, suc m, suc-eq eq => pmap suc (NatEq-is= eq)
+
+    \func zero-not-suc {n : Nat} (p : 0 = suc n) : Empty
+
+    \func dec (n : Nat) : Nat
+      | 0     => 0
+      | suc n => n
+
+    \func refl-not-inc {n m : Nat} {p : n = m} {le : T (n < m)} (p : refl p = inc le) : Empty
+  }
+
+\func ReflClosure_<=-isNotProp (p : \Pi (n m : Nat) -> isProp (ReflClosure LessOrEq n m)) : Empty
+  => refl=inc-isEmpty $ p 0 0 (refl idp) (inc z<=n)
+  \where {
+    \func refl=inc-isEmpty (q : refl {LessOrEq} (idp {_} {0}) = inc z<=n) : Empty
+  }
 
 -- 7. Докажите, что если тип A вкладывается в тип B и B является утверждением, то и A является утверждением.
 
