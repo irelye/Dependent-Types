@@ -206,8 +206,14 @@
   => setLem
       (\lam x y => DecEq dec $ dec x y)
       (\lam x y => DecEq-isProp dec x y)
-      (\lam x => cases (dec x x arg addPath) \with { | yes x=x, p => eq (x=x, p) | no n, _ => absurd (n idp) })
-      (\lam x y => {?})
+      (\lam x => cases (dec x x arg addPath) \with {
+        | yes x=x, p => eq (x=x, p)
+        | no n, _ => absurd (n idp)
+      })
+      (\lam {x} {y} d => cases (dec x y, d) \with {
+        | yes x=y, _ => x=y
+        | no n, d    => absurd (empty-dec d)
+      })
   \where {
     \data DecEq
       {A : \Type}
@@ -247,11 +253,19 @@
       (q1 : dec x y = yes p1)
       (q2 : dec x y = yes p2)
       : Paths.transport (\lam (x=y : x = y) => dec x y = yes x=y) (DecEq-isProp-fst q1 q2) q1 = q2
-        => {?}
+        => {?} -- нужно isSet (Decide (x = y)) или что-то типа того
+               -- ну то есть почти то же, что и исходная цель
 
     \func extract-x=y {A : \Type} {x y : A} (d : Decide (x = y)) (p : (x = y -> Empty) -> Empty) : x = y \elim d
       | yes a => a
       | no n  => absurd (p n)
+
+    \func empty-dec
+      {A : \Type}
+      {dec : \Pi (x y : A) -> Decide (x = y)}
+      {x y : A}
+      {n : (x = y) -> Empty}
+      (d : DecEq dec (no n)) : Empty
   }
 
 -- 9. Если A и B являются множествами, то A `Or` B тоже является множеством.
@@ -260,7 +274,27 @@
   | inl A
   | inr B
 
-\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B) => {?}
+\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B)
+  => setLem OrEq (OrEq-isProp p q)
+      (\lam x => \case \elim x \with {
+        | inl a => inl-eq idp
+        | inr b => inr-eq idp
+      })
+      (\lam {x} {y} d => cases (x, y, d) \with {
+        | inl _, inl _, OrEq.inl-eq r => pmap inl r
+        | inr _, inr _, OrEq.inr-eq r => pmap inr r
+      })
+  \where {
+    \data OrEq {A B : \Type} (x y : Or A B) \elim x, y
+      | inl a1, inl a2 => inl-eq (a1 = a2)
+      | inr b1, inr b2 => inr-eq (b1 = b2)
+
+    \func OrEq-isProp {A B :\Type} (p : isSet A) (q : isSet B) (x y : Or A B) : isProp (OrEq x y)
+      => \lam e1 e2 => \case \elim x, \elim y, \elim e1, \elim e2 \with {
+        | inl a1, inl a2, inl-eq p1, inl-eq p2 => pmap inl-eq (p a1 a2 p1 p2)
+        | inr b1, inr b2, inr-eq p1, inr-eq p2 => pmap inr-eq (q b1 b2 p1 p2)
+      }
+  }
 
 -- 10. Если B x является множеством, то \Pi (x : A) -> B x тоже является множеством.
 
@@ -269,7 +303,30 @@
 -- 11. Докажите, что если A является множеством, то List A также им является.
 
 \func List-isSet {A : \Type} (pA : isSet A) : isSet (List A)
-  => {?}
+  => setLem ListEq (ListEq-isProp pA) (ListEq-id __) {?}
+  \where {
+    \data ListEq {A : \Type} (l1 l2 : List A) \elim l1, l2
+      | nil, nil           => nil-eq
+      | :: a1 l1, :: a2 l2 => add-eq (a1 = a2) (ListEq l1 l2)
+
+    \func ListEq-isProp {A : \Type} (pa : isSet A) (l1 l2 : List A) : isProp (ListEq l1 l2) \elim l1, l2
+      | nil, nil           => \lam e1 e2 => \case \elim e1, \elim e2 \with {
+        | nil-eq, nil-eq => idp
+      }
+      | nil, :: a2 l2      => \lam e1 e2 => \case \elim e1, \elim e2 \with { }
+      | :: a1 l1, nil      => \lam e1 e2 => \case \elim e1, \elim e2 \with { }
+      | :: a1 l1, :: a2 l2 => \lam e1 e2 => \case \elim e1, \elim e2 \with {
+        | add-eq p1 e1, add-eq p2 e2 => pmap2 add-eq (pa a1 a2 p1 p2) (ListEq-isProp pa l1 l2 e1 e2)
+      }
+
+    \func ListEq-id {A : \Type} (l : List A) : ListEq l l \elim l
+      | nil    => nil-eq
+      | :: a l => add-eq idp (ListEq-id l)
+
+    \func ListEq-is= {A : \Type} {l1 l2 : List A} (e : ListEq l1 l2) : l1 = l2 \elim l1, l2, e
+      | nil, nil, nil-eq               => idp
+      | :: a1 l1, :: a2 l2, add-eq p e => pmap2 (::) p (ListEq-is= e)
+  }
 
 -- Optional:
 -- 12. Докажите, что n-типы замкнуты относительно образования \Pi-типов.
