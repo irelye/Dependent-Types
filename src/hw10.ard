@@ -2,7 +2,6 @@
 \import Function.Meta
 \import Meta
 \import Paths (pmap2)
-\import Paths.Meta
 \import lect10
 \import Utils
 
@@ -202,71 +201,9 @@
 
 -- 8. Докажите, что тип с разрешимым равенством являетя множеством.
 
-\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A
-  => setLem
-      (\lam x y => DecEq dec $ dec x y)
-      (\lam x y => DecEq-isProp dec x y)
-      (\lam x => cases (dec x x arg addPath) \with {
-        | yes x=x, p => eq (x=x, p)
-        | no n, _ => absurd (n idp)
-      })
-      (\lam {x} {y} d => cases (dec x y, d) \with {
-        | yes x=y, _ => x=y
-        | no n, d    => absurd (empty-dec d)
-      })
-  \where {
-    \data DecEq
-      {A : \Type}
-      (dec : \Pi (x y : A) -> Decide (x = y))
-      {x y : A}
-      (d : Decide (x = y))
-      \elim d
-        | yes x=y => eq (\Sigma (p : x = y) (dec x y = yes p))
+\import DeadlineFailures.hw10 (Dec-isSet \as Dec-isSet')
 
-    \func DecEq-isProp
-      {A : \Type}
-      (dec : \Pi (x y : A) -> Decide (x = y))
-      (x y : A)
-      : isProp (DecEq dec (dec x y))
-        => cases (dec x y) \with {
-          | yes _ => \lam d1 d2 => \case \elim d1, \elim d2 \with {
-            | eq (p1, q1), eq (p2, q2) => pmap eq $ ext (DecEq-isProp-fst q1 q2, DecEq-isProp-snd q1 q2)
-          }
-          | no _  => \lam d1 d2 => \case \elim d1, \elim d2 \with {}
-        }
-
-    \func DecEq-isProp-fst
-      {A : \Type}
-      {dec : \Pi (x y : A) -> Decide (x = y)}
-      {x y : A}
-      {p1 p2 : x = y}
-      (q1 : dec x y = yes p1)
-      (q2 : dec x y = yes p2)
-      : p1 = p2
-        => pmap (extract-x=y __ (\lam (neq : x = y -> Empty) => absurd (neq p1))) (sym q1 *> q2)
-
-    \func DecEq-isProp-snd
-      {A : \Type}
-      {dec : \Pi (x y : A) -> Decide (x = y)}
-      {x y : A}
-      {p1 p2 : x = y}
-      (q1 : dec x y = yes p1)
-      (q2 : dec x y = yes p2)
-      : Paths.transport (\lam (x=y : x = y) => dec x y = yes x=y) (DecEq-isProp-fst q1 q2) q1 = q2
-        => {?} -- нужно isSet (Decide (x = y)) или что-то типа того
-               -- ну то есть почти то же, что и исходная цель
-
-    \func extract-x=y {A : \Type} {x y : A} (d : Decide (x = y)) (p : (x = y -> Empty) -> Empty) : x = y \elim d
-      | yes a => a
-      | no n  => absurd (p n)
-
-    \func empty-dec
-      {A : \Type}
-      {dec : \Pi (x y : A) -> Decide (x = y)}
-      {x y : A}
-      {n : (x = y) -> Empty}
-      (d : DecEq dec (no n)) : Empty
-  }
+\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A => Dec-isSet' {A} dec
 
 -- 9. Если A и B являются множествами, то A `Or` B тоже является множеством.
 
@@ -303,7 +240,7 @@
 -- 11. Докажите, что если A является множеством, то List A также им является.
 
 \func List-isSet {A : \Type} (pA : isSet A) : isSet (List A)
-  => setLem ListEq (ListEq-isProp pA) (ListEq-id __) {?}
+  => setLem ListEq (ListEq-isProp pA) (ListEq-id __) ListEq-is= -- забыл подставить вместо {?} ListEq-is=
   \where {
     \data ListEq {A : \Type} (l1 l2 : List A) \elim l1, l2
       | nil, nil           => nil-eq

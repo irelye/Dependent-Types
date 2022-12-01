@@ -1,0 +1,41 @@
+\import DeadlineFailures.lect07 \hiding (<=-refl, baz, isEven)
+\import Function.Meta
+\import Meta
+\import Paths.Meta
+\import lect10
+\import Utils
+
+-- 8. Докажите, что тип с разрешимым равенством являетя множеством.
+
+\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A
+  => setLem
+      (DecEq dec)
+      (\lam x y => DecEq-isProp dec x y)
+      (\lam x => cases (dec x x arg addPath) \with {
+        | yes x=x, p => transport T (pmap (\case __ \with { | yes y => true | no n => false }) (sym p)) ()
+        | no x/=x, _ => absurd (x/=x idp)
+      })
+      (\lam {x} {y} d => cases (dec x y arg addPath) \with {
+        | yes x=y, _ => x=y
+        | no x/=y, p => absurd $ transport T (pmap (\case __ \with { | yes y => true | no n => false }) p) d
+      })
+  \where {
+    \func DecEq {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : A -> A -> \Type
+      => \lam x y => T $ DecEq' dec x y
+
+    \func DecEq' {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : A -> A -> Bool
+      => \lam x y => \case (dec x y) \with {
+        | yes x=y => true
+        | no x/=y => false
+      }
+
+    \func DecEq-isProp
+      {A : \Type}
+      (dec : \Pi (x y : A) -> Decide (x = y))
+      (x y : A)
+      : isProp (DecEq dec x y)
+      => \lam d1 d2 => cases (DecEq' dec x y arg addPath) \with {
+        | true, p  => transport isProp (sym $ pmap T p) (\lam _ _ => idp) d1 d2
+        | false, p => absurd (transport T p d1)
+      }
+  }
